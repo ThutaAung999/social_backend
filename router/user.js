@@ -68,9 +68,7 @@ router.post(
     }
 
     try {
-      const user = await User.fineOne({ email: req.body.email }).select(
-        '+password'
-      );
+      const user = await User.findOne({ email: req.body.email });
       if (!user) {
         return res.status(400).json('user does not exist');
       }
@@ -87,9 +85,12 @@ router.post(
         JWT_SECRET
         // { expiresIn: '1h' }
       );
-      res.status(200).json({ user, accessToken });
+      const { password, ...others } = user._doc;
+      res.status(200).json({ user: others, accessToken });
     } catch (error) {
-      res.status(500).json('Internal server error :', error);
+      res
+        .status(500)
+        .json({ error: 'Internal server error', details: error.message });
     }
   }
 );
