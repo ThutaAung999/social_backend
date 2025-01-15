@@ -17,16 +17,20 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  pendingFriends: {
+  followers: {
     type: Array,
     default: [],
   },
-  friends: {
+  following: {
     type: Array,
     default: [],
   },
+  /* friends: {
+    type: Array,
+    default: [],
+  }, */
   phonenumber: {
-    type: Number,
+    type: String,
     required: true,
   },
   profile: {

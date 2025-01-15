@@ -3,6 +3,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import userRouter from './router/user.js';
+import postRouter from './router/post.js';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ mongoose
 
 app.use(express.json());
 app.use('/api/user', userRouter);
+app.use('/api/post', postRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
