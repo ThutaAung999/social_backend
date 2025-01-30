@@ -2,6 +2,7 @@
 import express from 'express';
 import Post from '../Models/Post.js';
 import verifyToken from './verifyToken.js';
+import User from '../Models/User.js';
 
 const router = express.Router();
 
@@ -19,12 +20,10 @@ router.post('/user/post', verifyToken, async (req, res) => {
 });
 
 //upload posts by one user  ,  get all posts by one user
-router.get('/get/post/:id', verifyToken, async (req, res) => {
-  console.log('req.user', req.user);
-  console.log('req.params.id', req.params.id);
+router.get('/get/post/:id', async (req, res) => {
   try {
     const myPost = await Post.find({ user: req.params.id });
-    console.log('myPost', myPost);
+
     if (!myPost) {
       return res.status(200).json("You don't have any post");
     }
@@ -74,14 +73,15 @@ router.patch('/update/post/:id', verifyToken, async (req, res) => {
 router.put('/:id/like', verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post.like.includes(req.body.user)) {
-      if (post.dislike.includes(req.body.user)) {
-        await post.updateOne({ $pull: { dislike: req.body.user } });
+    console.log('post :', post);
+    if (!post.like.includes(req.user.id)) {
+      if (post.dislike.includes(req.user.id)) {
+        await post.updateOne({ $pull: { dislike: req.user.id } });
       }
-      await post.updateOne({ $push: { like: req.body.user } });
+      await post.updateOne({ $push: { like: req.user.id } });
       return res.status(200).json('Post has been liked');
     } else {
-      await post.updateOne({ $pull: { like: req.body.user } });
+      await post.updateOne({ $pull: { like: req.user.id } });
       return res.status(200).json('Post has been unlike');
     }
   } catch (error) {
@@ -141,6 +141,50 @@ router.delete('/delete/post/:id', verifyToken, async (req, res) => {
   } catch (error) {
     return res.status(500).json('Internal server error');
   }
+});
+
+//get a  following user
+router.get('/following/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    const followingUser = await Promise.all(
+      user.following.map((item) => {
+        return User.findById(item);
+      })
+    );
+
+    let followingList = [];
+    followingUser.map((person) => {
+      const { email, phonenumber, followers, following, password, ...others } =
+        person._doc;
+      followingList.push(others);
+    });
+    res.status(200).json(followingList);
+  } catch (error) {
+    return res.status(500).json('Internal server error');
+  }
+});
+
+//get a  follower user
+router.get('/followers/:id', async (req, res) => {
+  // try {
+  const user = await User.findById(req.params.id);
+  const followersUser = await Promise.all(
+    user.followers.map((item) => {
+      return User.findById(item);
+    })
+  );
+
+  let followersList = [];
+  followersUser.map((person) => {
+    const { email, phonenumber, followers, following, password, ...others } =
+      person._doc;
+    followersList.push(others);
+  });
+  res.status(200).json(followersList);
+  // } catch (error) {
+  //   return res.status(500).json('Internal server error');
+  // }
 });
 
 export default router;

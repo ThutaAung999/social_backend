@@ -99,7 +99,7 @@ router.post(
 
 //get All users
 router.get('/get/users', async (req, res) => {
-  const users = await User.find().select('-password');
+  const users = await User.find().select('-password'); //remove password
 
   if (!users) {
     return res.status(200).json('No user found');
@@ -107,7 +107,7 @@ router.get('/get/users', async (req, res) => {
   res.status(200).json(users);
 });
 
-//update user
+//update user  ,ဒါက ကိုယ့် ဘာသာ ရေးထားတာ ,   tutorial  မှာ မပါဘူး
 router.patch(
   '/update/user/:id',
   /* verifyToken, */ async (req, res) => {
@@ -157,19 +157,15 @@ router.delete(
 //following
 router.put('/following/:id', verifyToken, async (req, res) => {
   try {
-    console.log('req.params.id', req.params.id);
-    console.log('req.body.user', req.body.user);
+    //console.log('req.params.id', req.params.id);
+    //console.log('req.body.user', req.body.user);// Note : req.body.user is the user id who is following
     if (req.params.id !== req.body.user) {
       //ကိုယ့်  ac   ကိုယ် ပြန်ပြီးတော့  follow  လုပ်လို့မရဘူး
       const user = await User.findById(req.params.id);
       console.log('user :', user);
-      /* if (!user) {
-          return res.status(200).json("Post not found");
-        }else{
-            return res.status(200).json("You are already following this post");
-        } */
-      const otheruser = await User.findById(req.body.user);
 
+      const otheruser = await User.findById(req.body.user);
+      console.log('otheruser :', otheruser);
       //user က  follow မလုပ်ရသေးဘူးဆိုရင်
       if (!user.followers.includes(req.body.user)) {
         //this user is not exist in our followers array or followers list
@@ -184,7 +180,12 @@ router.put('/following/:id', verifyToken, async (req, res) => {
         res.status(200).json('User has followed');
       } else {
         //this user is already exist in our followers array or followers list
-        return res.status(200).json('You are already following this user ');
+        // return res.status(200).json('You are already following this user ');
+
+        //if  block ထဲက နည်းလမ်း အသစ် , အခု နည်းဟောင်းနဲံရေးမယ်
+        await user.updateOne({ $pull: { followers: req.body.id } });
+        await otheruser.updateOne({ $pull: { following: req.params.id } });
+        return res.status(200).json('User has unfollowed');
       }
     } else {
       //ကိုယ့်  ac   ကိုယ် ပြန်ပြီးတော့  follow  လုပ်လို့မရဘူး
@@ -197,12 +198,12 @@ router.put('/following/:id', verifyToken, async (req, res) => {
   }
 });
 
-//Fetch post from following
+//Fetch posts from following users
 router.get('/flw/:id', verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     const followersPost = await Promise.all(
-      user.followers.map((item) => {
+      user?.following.map((item) => {
         return Post.find({ user: item });
       })
     );
@@ -220,11 +221,15 @@ router.get('/flw/:id', verifyToken, async (req, res) => {
 //Update User Profile
 router.put('/update/:id', verifyToken, async (req, res) => {
   try {
+    console.log('req.params.id', req.params.id); //677edae3231634cad19bcebf
+    console.log('req.user.id', req.user.id); //677edae3231634cad19bcebf
     if (req.params.id === req.user.id) {
       //ကို့ယ်   profile  ကိုယ်ပဲ ပြင်လို့ရအောင် စစ်တာပါ
       //The purpose of this check is to ensure that the authenticated user (represented by req.user.id) can only update their own profile.
-
+      console.log('req.body.password', req.body.password); ////undefined ပြနေတာ body  မှာ password field  ထည့်မပေးလို့်ပါ,
+      console.log('req.body :', req.body);
       if (req.body.password) {
+        //undefined ပြနေတယ်
         const salt = await bcrypt.genSalt(10); //10 reandom string
         const secretPassword = await bcrypt.hash(req.body.password, salt);
         req.body.password = secretPassword;
@@ -264,6 +269,62 @@ router.delete('/delete/:id', verifyToken, async (req, res) => {
     return res
       .status(500)
       .json({ errorMessage: 'Internal Server Error', error: error });
+  }
+});
+
+//get User details for post
+router.get('/post/user/details/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .populate('user', 'username profile')
+      .populate('comments.user', 'username profile');
+    if (!user) {
+      return res.status(400).json('User not found');
+    }
+    ``;
+    //အောက်က  code  တွေက user က database collection  ထဲမှာ
+    // document တစ်ခုအနေနဲံ ရှိမှ ဆက်လုပ်မယ်
+    //email, password, phonenumber,  ၃ ခုချန်ပြီး ကျန်တာ အကုန်ယူတာ ။
+    const { email, password, phonenumber, ...others } = user._doc;
+    res.status(200).json(others);
+  } catch (error) {
+    return res.status(500).json('Internal server error');
+  }
+});
+
+//get user to follow
+router.get('/all/user/:id', async (req, res) => {
+  try {
+    const allUser = await User.find();
+    const user = await User.findById(req.params.id);
+    const followingUser = await Promise.all(
+      user.following.map((item) => {
+        return item;
+      })
+    );
+    //Filter Users to Exclude Already-Followed
+    let userToFollow = allUser.filter((val) => {
+      return !followingUser.find((item) => {
+        return val._id.toString() === item;
+      });
+    });
+
+    let filterUser = await Promise.all(
+      userToFollow.map((item) => {
+        const {
+          email,
+          phonenumber,
+          followers,
+          following,
+          password,
+          ...others
+        } = item._doc;
+        return others;
+      })
+    );
+    res.status(200).json(filterUser);
+  } catch (error) {
+    console.log('Error :', error);
   }
 });
 

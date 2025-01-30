@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import userRouter from './router/user.js';
 import postRouter from './router/post.js';
+import cors from 'cors';
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ mongoose
     console.log(err);
   });
 
+app.use(cors());
 app.use(express.json());
 app.use('/api/user', userRouter);
 app.use('/api/post', postRouter);
