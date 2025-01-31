@@ -162,10 +162,8 @@ router.put('/following/:id', verifyToken, async (req, res) => {
     if (req.params.id !== req.body.user) {
       //ကိုယ့်  ac   ကိုယ် ပြန်ပြီးတော့  follow  လုပ်လို့မရဘူး
       const user = await User.findById(req.params.id);
-      console.log('user :', user);
 
       const otheruser = await User.findById(req.body.user);
-      console.log('otheruser :', otheruser);
       //user က  follow မလုပ်ရသေးဘူးဆိုရင်
       if (!user.followers.includes(req.body.user)) {
         //this user is not exist in our followers array or followers list
@@ -204,7 +202,9 @@ router.get('/flw/:id', verifyToken, async (req, res) => {
     const user = await User.findById(req.params.id);
     const followersPost = await Promise.all(
       user?.following.map((item) => {
-        return Post.find({ user: item });
+        return Post.find({ user: item })
+          .populate('user', 'username profile')
+          .populate('comments.user', 'username profile');
       })
     );
     const userPost = await Post.find({ user: user._id });
@@ -275,16 +275,10 @@ router.delete('/delete/:id', verifyToken, async (req, res) => {
 //get User details for post
 router.get('/post/user/details/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .populate('user', 'username profile')
-      .populate('comments.user', 'username profile');
+    const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(400).json('User not found');
     }
-    ``;
-    //အောက်က  code  တွေက user က database collection  ထဲမှာ
-    // document တစ်ခုအနေနဲံ ရှိမှ ဆက်လုပ်မယ်
-    //email, password, phonenumber,  ၃ ခုချန်ပြီး ကျန်တာ အကုန်ယူတာ ။
     const { email, password, phonenumber, ...others } = user._doc;
     res.status(200).json(others);
   } catch (error) {

@@ -73,7 +73,7 @@ router.patch('/update/post/:id', verifyToken, async (req, res) => {
 router.put('/:id/like', verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    console.log('post :', post);
+
     if (!post.like.includes(req.user.id)) {
       if (post.dislike.includes(req.user.id)) {
         await post.updateOne({ $pull: { dislike: req.user.id } });
