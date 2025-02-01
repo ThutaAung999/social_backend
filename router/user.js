@@ -202,9 +202,12 @@ router.get('/flw/:id', verifyToken, async (req, res) => {
     const user = await User.findById(req.params.id);
     const followersPost = await Promise.all(
       user?.following.map((item) => {
-        return Post.find({ user: item })
-          .populate('user', 'username profile')
-          .populate('comments.user', 'username profile');
+        return (
+          Post.find({ user: item })
+            .populate('user', 'username profile')
+            //.populate('user')
+            .populate('comments.user', 'username profile')
+        );
       })
     );
     const userPost = await Post.find({ user: user._id });
