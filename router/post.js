@@ -23,15 +23,12 @@ router.post('/user/post', verifyToken, async (req, res) => {
 router.get('/get/post/:id', async (req, res) => {
   try {
     const myPost = await Post.find({ user: req.params.id });
-
-    if (!myPost) {
+    if (!myPost) {//ဘာ  post  မှ မရှိရင်  ပြန်
       return res.status(200).json("You don't have any post");
     }
-    res.status(200).json(myPost);
+    res.status(200).json(myPost);//post  ရှိရင် ပြန်
   } catch (error) {
-    res
-      .status(500)
-      .json({ errorMessage: 'Internal Server Error', error: error });
+    res.status(500).json({ errorMessage: 'Internal Server Error', error: error });
   }
 });
 
