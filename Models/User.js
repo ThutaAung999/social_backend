@@ -36,6 +36,11 @@ const userSchema = new mongoose.Schema({
   profile: {
     type: String,
   },
+  verifed: {
+    type: Boolean,
+    required: true,
+    default: false,
+  },
 });
 
 export default mongoose.model('User', userSchema);

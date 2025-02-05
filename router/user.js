@@ -7,6 +7,10 @@ import jwt from 'jsonwebtoken';
 import verifyToken from './verifyToken.js';
 import Post from '../Models/Post.js';
 
+import { generateOTP } from '../router/Email/mail.js';
+import VerificationToken from '../Models/VerificationToken.js';
+import nodemailer from 'nodemailer';
+
 const router = express.Router();
 const JWT_SECRET = '#zinyawhteinhtein222222222';
 
@@ -40,14 +44,42 @@ router.post(
         phonenumber: req.body.phonenumber,
       });
 
-      const accessToken = jwt.sign(
+      // create  user  မှာ  accessToken  မလိုလို့ သူ့ကို မသုံးတော့ဘူးနော်
+      /* const accessToken = jwt.sign(
         { id: user._id, username: user.username },
         JWT_SECRET
         // { expiresIn: '1h' }
-      );
+      ); */
+      const OTP = generateOTP();
+      const verificationToken = await VerificationToken.create({
+        user: user._id,
+        token: OTP,
+      });
+      await verificationToken.save();
+
       await user.save();
 
-      res.status(201).json({ user, accessToken });
+      // Looking to send emails in production? Check out our Email API/SMTP product!
+      const transport = nodemailer.createTransport({
+        host: 'sandbox.smtp.mailtrap.io',
+        port: 2525,
+        auth: {
+          user: process.env.USER,
+          pass: process.env.PASS,
+        },
+      });
+      transport.sendMail({
+        from: 'sociaMedia@gmail.com',
+        to: user.email,
+        subject: 'Verify your email using OTP',
+        html: `<h1>Your OTP CODE ${OTP}</h1>`,
+      });
+
+      res.status(200).json({
+        Status: 'Pending',
+        msg: 'Please check your email',
+        user: user._id,
+      });
     } catch (error) {
       console.error('Error occurred:', error); // Log the error for debugging
       return res
@@ -57,8 +89,60 @@ router.post(
   }
 );
 
-//Login
+//verify email
+router.post('/verify/email', async (req, res) => {
+  const { user, OTP } = req.body;
+  console.log({ user, OTP });
+  const mainuser = await User.findById(user);
+  console.log('mainuser :', mainuser);
+  if (!mainuser) return res.status(400).json('User not found');
+  if (mainuser.verifed === true) {
+    return res.status(400).json('User already verifed');
+  }
+  //verificationToken  collection  ထဲက  token  ကိုထုတ်တာ
+  const token = await VerificationToken.findOne({ user: mainuser._id });
+  console.log('token :', token);
+  if (!token) {
+    return res.status(400).json('Sorry token not found');
+  }
+  //compare requested token with token from database
+  // and if they are the same, then user is verified
+  //token  က  database  ထဲမှာ ရှိမှ   user  ကို  verify  လုပ်
+  const isMatch = await bcrypt.compareSync(OTP, token.token);
+  if (!isMatch) {
+    return res.status(400).json('Token is not valid');
+  }
 
+  mainuser.verifed = true;
+  await VerificationToken.findByIdAndDelete(token._id);
+  await mainuser.save();
+  const accessToken = jwt.sign(
+    {
+      id: mainuser._id,
+      username: mainuser.username,
+    },
+    JWT_SECRET
+  );
+  //remove the password field from the response
+  const { password, ...other } = mainuser._doc;
+  const transport = nodemailer.createTransport({
+    host: 'smtp.mailtrap.io',
+    port: 2525,
+    auth: {
+      user: process.env.USER,
+      pass: process.env.PASS,
+    },
+  });
+  transport.sendMail({
+    from: 'sociaMedia@gmail.com',
+    to: mainuser.email,
+    subject: 'Successfully verify your email',
+    html: `Now you can login in social app`,
+  });
+  return res.status(200).json({ other, accessToken });
+});
+
+//Login
 router.post(
   '/login',
   body('email').isEmail(),

@@ -22,6 +22,7 @@
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.3",
+    "nodemailer": "^6.10.0",
     "nodemon": "^3.1.9"
   },
   "repository": "https://github.com/ThutaAung999/social_backend.git",
