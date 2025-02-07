@@ -17,16 +17,16 @@ const ResetTokenSchema = new mongoose.Schema({
     //expires: 3600, // 1 hour expiration (Optional)s
   },
 });
-/* 
-ResetTokenSchema.pre("save" , async function(next){
-          const salt = await bcrypt.genSalt(10);
-          if(this.isModified("token")){
-                    const hash = await bcrypt.hash(this.token , salt);
-                    this.token = hash
-          }
-          next();
-})*/
 
+ResetTokenSchema.pre('save', async function (next) {
+  const salt = await bcrypt.genSalt(10);
+  if (this.isModified('token')) {
+    const hash = await bcrypt.hash(this.token, salt);
+    this.token = hash;
+  }
+  next();
+});
+/* 
 ResetTokenSchema.pre('save', async function (next) {
   if (!this.isModified('token')) return next();
 
@@ -37,5 +37,5 @@ ResetTokenSchema.pre('save', async function (next) {
   } catch (error) {
     next(error);
   }
-});
+}); */
 export default mongoose.model('ResetToken', ResetTokenSchema);

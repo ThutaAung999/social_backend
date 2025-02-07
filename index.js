@@ -1,7 +1,8 @@
 /* eslint-disable no-undef */
+import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+
 import userRouter from './router/user.js';
 import postRouter from './router/post.js';
 import cors from 'cors';

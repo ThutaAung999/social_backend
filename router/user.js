@@ -10,6 +10,9 @@ import Post from '../Models/Post.js';
 import { generateOTP } from '../router/Email/mail.js';
 import VerificationToken from '../Models/VerificationToken.js';
 import nodemailer from 'nodemailer';
+import ResetToken from '../Models/ResetToken.js';
+//import { transport } from '../util/mailtrapTransport.js';
+import crypto from 'crypto';
 
 const router = express.Router();
 const JWT_SECRET = '#zinyawhteinhtein222222222';
@@ -181,7 +184,111 @@ router.post(
   }
 );
 
-//get All users
+//Forgot password
+router.post('/forgot/password', async (req, res) => {
+  const { email } = req.body;
+
+  // Step 1: Find User by Email
+  const user = await User.findOne({ email: email });
+  if (!user) {
+    return res.status(400).json('User not found');
+  }
+  //reset token  ကို တစ်နာရီမှာ တစ်ကြိမ်တည်း ပဲ လုပ်လို့ရအောင် ကျိန်းသေအောင်လုပ်တာ
+  // Step 2: Check if Reset Token Already Exists (to prevent multiple requests)
+  const token = await ResetToken.findOne({ user: user._id });
+  if (token) {
+    return res
+      .status(400)
+      .json('After one hour you can request for another token');
+  }
+
+  // Step 3: Generate ‌ a new Reset Random Token
+  //Math.random()   ထက်  secure  ဖြစ်လို့ သုံးတာ
+  const RandomTxt = crypto.randomBytes(20).toString('hex');
+
+  //Setp 4: ResetToken collection ထဲမှာ user._id နဲ့ token ကိုသိမ်းဆည်းမယ်။
+  const resetToken = new ResetToken({
+    user: user._id,
+    token: RandomTxt,
+  });
+  await resetToken.save();
+
+  // Step 5: Send Email to User with Reset Token
+  //SMTP transporter ကို route တိုင်းမှာ အသစ်ပြန် create လုပ်တာ
+  const transport = nodemailer.createTransport({
+    host: 'smtp.mailtrap.io',
+    port: 2525,
+    auth: {
+      user: process.env.USER,
+      pass: process.env.PASS,
+    },
+  });
+  //RandomText  နဲ့  user._id  တို့ကို  reset/password route  ဆီကို  query param အနေနဲ့ပို့ထားတယ်
+  transport.sendMail({
+    from: 'sociaMedia@gmail.com',
+    to: user.email,
+    subject: 'Reset Token',
+    //html: `http://localhost:5000/reset/password?token=${RandomTxt}&_id=${user._id}`,
+    html: `<a href="http://localhost:5000/reset/password?token=${RandomTxt}&_id=${user._id}">Click here to reset password</a>`,
+  });
+
+  // Step 6: Send Successful Response
+  return res.status(200).json('Check your email to reset password');
+});
+
+//reset password
+router.put('/reset/password', async (req, res) => {
+  const { token, _id } = req.query;
+  if (!token || !_id) {
+    return res.status(400).json('Invalid req');
+  }
+  const user = await User.findOne({ _id: _id });
+  if (!user) {
+    return res.status(400).json('user not found');
+  }
+  const resetToken = await ResetToken.findOne({ user: user._id });
+  console.log('resetToken :', resetToken);
+
+  if (!resetToken) {
+    return res.status(400).json('Reset token is not found');
+  }
+  console.log('resetToken.token :', resetToken.token);
+
+  console.log('token :', token);
+  //bcrypt.compareSync()  က  async  မှ မဟုတ်တာ  await  မလိုဘူး
+  const isMatch = bcrypt.compareSync(token, resetToken.token);
+  if (!isMatch) {
+    return res.status(400).json('Token is not valid');
+  }
+
+  //new password  ကို  payload/body  ထဲမှာ ထည့်ပေးလိုက်ရတယ်
+  const { password } = req.body;
+  console.log('password :', password);
+  // const salt = await bcrypt.getSalt(10);
+  //password ကို hash လုပ်ပြီး strong security ဖြစ်အောင်လုပ်တာ
+  const secpass = await bcrypt.hash(password, 10);
+  user.password = secpass;
+  await user.save();
+  //SMTP transporter ကို route တိုင်းမှာ အသစ်ပြန် create လုပ်တာ
+  const transport = nodemailer.createTransport({
+    host: 'smtp.mailtrap.io',
+    port: 2525,
+    auth: {
+      user: process.env.USER,
+      pass: process.env.PASS,
+    },
+  });
+  transport.sendMail({
+    from: 'sociaMedia@gmail.com',
+    to: user.email,
+    subject: 'Your password reset successfully',
+    html: `Now you can login with new password`,
+  });
+
+  return res.status(200).json('Email has been send');
+});
+
+//get All users  , ဒါက ကိုယ့် ဘာသာ ရေးထားတာ ,   tutorial  မှာ မပါဘူး
 router.get('/get/users', async (req, res) => {
   const users = await User.find().select('-password'); //remove password
 
@@ -216,7 +323,7 @@ router.patch(
   }
 );
 
-//delete user
+//delete user  ,  ဒါက ကိုယ့် ဘာသာ ရေးထားတာ ,   tutorial  မှာ မပါဘူး
 router.delete(
   '/delete/user/:id',
   /* verifyToken, */ async (req, res) => {
