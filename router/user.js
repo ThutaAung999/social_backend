@@ -19,6 +19,7 @@ const JWT_SECRET = '#zinyawhteinhtein222222222';
 
 router.post(
   '/create/user',
+  //validation
   body('username').isLength({ min: 5 }),
   body('email').isEmail(),
   body('password').isLength({ min: 6 }),
@@ -31,6 +32,7 @@ router.post(
 
     try {
       let user = await User.findOne({ email: req.body.email });
+      console.log({user:user});
       if (user) {
         //email already exist
         return res.status(200).json('Email already exist');
@@ -96,6 +98,7 @@ router.post(
 router.post('/verify/email', async (req, res) => {
   const { user, OTP } = req.body;
   console.log({ user, OTP });
+  //user is  user's Id
   const mainuser = await User.findById(user);
   console.log('mainuser :', mainuser);
   if (!mainuser) return res.status(400).json('User not found');
@@ -114,7 +117,7 @@ router.post('/verify/email', async (req, res) => {
   const isMatch = await bcrypt.compareSync(OTP, token.token);
   if (!isMatch) {
     return res.status(400).json('Token is not valid');
-  }
+  }``
 
   mainuser.verifed = true;
   await VerificationToken.findByIdAndDelete(token._id);
